@@ -48,7 +48,7 @@ class GATest:
         print("Best Chromosome: {}".format(self.best_chromosome))
         print("Best Chromosome Fitness Value: {}\n".format(self.best_chromosome_fitness))
 
-        self.tti_count = (1 + pop_size) * 10
+        self.tti_count = (1 + self.pop_size) * 10
         best_chromosomes_fitness = []
         while(self.tti_count < self.running_tti):
             self.crossover(self.chromosomes)
@@ -116,10 +116,10 @@ class GATest:
             ue_avg_nr = []
             for _ in range(self.number_of_genes):
                 ue_avg_nr.append(0.0)
-            ue_max_rate_lte = self.signal_weight_lte.copy()
-            ue_max_rate_nr = self.signal_weight_nr.copy()
-            ue_r_R_lte = ue_max_rate_lte.copy()
-            ue_r_R_nr = ue_max_rate_nr.copy()
+            ue_max_rate_lte = copy.deepcopy(self.signal_weight_lte)
+            ue_max_rate_nr = copy.deepcopy(self.signal_weight_nr)
+            ue_r_R_lte = copy.deepcopy(ue_max_rate_lte)
+            ue_r_R_nr = copy.deepcopy(ue_max_rate_nr)
 
             packets_to_nr = np.array(self.packet_count) * nr_ratio[i] / 10
             packets_to_nr = np.asarray(packets_to_nr, dtype = int)
@@ -142,8 +142,8 @@ class GATest:
 
                     if ue_avg_nr[m] != 0.0:
                         ue_r_R_nr[m] = float(ue_max_rate_nr[m]) / ue_avg_nr[m]
-                ue_r_R_lte_temp = ue_r_R_lte.copy()
-                ue_r_R_nr_temp = ue_r_R_nr.copy()
+                ue_r_R_lte_temp = copy.deepcopy(ue_r_R_lte)
+                ue_r_R_nr_temp = copy.deepcopy(ue_r_R_nr)
 
                 for _ in range(self.number_of_genes):
                     ue_priority_lte.append(ue_r_R_lte_temp.index(max(ue_r_R_lte_temp)))
@@ -192,10 +192,10 @@ class GATest:
             ue_avg_nr = []
             for _ in range(self.number_of_genes):
                 ue_avg_nr.append(0.0)
-            ue_max_rate_lte = self.signal_weight_lte.copy()
-            ue_max_rate_nr = self.signal_weight_nr.copy()
-            ue_r_R_lte = ue_max_rate_lte.copy()
-            ue_r_R_nr = ue_max_rate_nr.copy()
+            ue_max_rate_lte = copy.deepcopy(self.signal_weight_lte)
+            ue_max_rate_nr = copy.deepcopy(self.signal_weight_nr)
+            ue_r_R_lte = copy.deepcopy(ue_max_rate_lte)
+            ue_r_R_nr = copy.deepcopy(ue_max_rate_nr)
 
             packets_to_nr = np.array(self.packet_count) * nr_ratio[i] / 10
             packets_to_nr = np.asarray(packets_to_nr, dtype = int)
@@ -218,8 +218,8 @@ class GATest:
 
                     if ue_avg_nr[m] != 0.0:
                         ue_r_R_nr[m] = float(ue_max_rate_nr[m]) / ue_avg_nr[m]
-                ue_r_R_lte_temp = ue_r_R_lte.copy()
-                ue_r_R_nr_temp = ue_r_R_nr.copy()
+                ue_r_R_lte_temp = copy.deepcopy(ue_r_R_lte)
+                ue_r_R_nr_temp = copy.deepcopy(ue_r_R_nr)
 
                 for _ in range(self.number_of_genes):
                     ue_priority_lte.append(ue_r_R_lte_temp.index(max(ue_r_R_lte_temp)))
@@ -293,7 +293,7 @@ signal_weight_lte = []
 signal_weight_nr = []
 lte_resource = 100
 nr_resource = 120
-running_tti = 310
+running_tti = 410
 GATest(pop_size, chromosomes, chromosomes_fitness, crossovered_chromosomes, crossovered_chromosomes_fitness, 
        best_chromosome, best_chromosome_fitness, number_of_genes, packet_size, packet_count, signal_weight_lte,
        signal_weight_nr, lte_resource, nr_resource, running_tti).main()
