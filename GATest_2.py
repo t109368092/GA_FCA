@@ -5,14 +5,15 @@ import numpy as np
 
 #Objective: Maximize Throughput Gain Fairness
 class GATest:
-    def __init__(self, pop_size, chromosomes, chromosomes_fitness,
-                 crossovered_chromosomes, crossovered_chromosomes_fitness,
-                 best_chromosome, best_chromosome_fitness, number_of_genes,
-                 packet_size, packet_count, signal_weight_lte, signal_weight_nr,
-                 lte_resource, nr_resource, running_tti):
+    def __init__(self, pop_size, chromosomes, chromosomes_fitness, selected_chromosomes, selected_chromosomes_fitness,
+                 crossovered_chromosomes, crossovered_chromosomes_fitness, best_chromosome, best_chromosome_fitness,
+                 number_of_genes, packet_size, packet_count, signal_weight_lte, signal_weight_nr, lte_resource,
+                 nr_resource, running_tti):
         self.pop_size = pop_size
         self.chromosomes = chromosomes
         self.chromosomes_fitness = chromosomes_fitness
+        self.selected_chromosomes = selected_chromosomes
+        self.selected_chromosomes_fitness = selected_chromosomes_fitness
         self.crossovered_chromosomes = crossovered_chromosomes
         self.crossovered_chromosomes_fitness = crossovered_chromosomes_fitness
         self.best_chromosome = best_chromosome
@@ -32,12 +33,16 @@ class GATest:
         self.chromosomes_generate()
         print("All Chromosomes: {}".format(self.chromosomes))
 
-        self.flows_generate()
-
+        self.constant_chromosome = []
         self.lte_chromosome = []
+        self.constant_chromosome.append([])
         self.lte_chromosome.append([])
         for _ in range(self.number_of_genes):
+            self.constant_chromosome[0].append(5)
             self.lte_chromosome[0].append(0)
+        
+        self.flows_generate()
+
         self.lte_chromosome_rate = self.lte_rate_calculate(self.lte_chromosome)
 
         self.chromosomes_fitness = self.fitness_calculate(self.chromosomes)
@@ -51,7 +56,13 @@ class GATest:
         self.tti_count = (1 + self.pop_size) * 10
         best_chromosomes_fitness = []
         while(self.tti_count < self.running_tti):
-            self.crossover(self.chromosomes)
+            self.select()
+            print("Selected Chromosomes: {}".format(self.selected_chromosomes))
+
+            self.selected_chromosomes_fitness = self.fitness_calculate(self.selected_chromosomes)
+            print("Selected Chromosomes Fitness Value: {}\n".format(self.selected_chromosomes_fitness))
+
+            self.crossover(self.selected_chromosomes)
             print("Crossovered Chromosomes: {}".format(self.crossovered_chromosomes))
 
             self.crossovered_chromosomes_fitness = self.fitness_calculate(self.crossovered_chromosomes)
@@ -249,8 +260,23 @@ class GATest:
                 ue_avg_nr = ue_avg_nr / (tti + 1)
                 ue_avg_lte = ue_avg_lte.tolist()
                 ue_avg_nr = ue_avg_nr.tolist()
+        print(ue_avg_lte)
 
         return ue_avg_lte
+
+    def select(self):
+        fitness_temp = copy.deepcopy(self.chromosomes_fitness)
+        fitness_temp = np.asarray(fitness_temp, dtype = int)
+        fitness_temp = fitness_temp.tolist()
+        chromosomes_temp = copy.deepcopy(self.chromosomes)
+        self.selected_chromosomes = []
+        
+        for _ in range(2):
+            choice = random.choices(chromosomes_temp, weights = fitness_temp)[0]
+            self.selected_chromosomes.append(choice)
+            choice_index = chromosomes_temp.index(choice)
+            del chromosomes_temp[choice_index]
+            del fitness_temp[choice_index]
 
     def crossover(self, selected_chromosomes):
         self.crossovered_chromosomes = []
@@ -282,6 +308,8 @@ class GATest:
 pop_size = 10
 chromosomes = []
 chromosomes_fitness = []
+selected_chromosomes = []
+selected_chromosomes_fitness = []
 crossovered_chromosomes = []
 crossovered_chromosomes_fitness = []
 best_chromosome = []
@@ -293,7 +321,8 @@ signal_weight_lte = []
 signal_weight_nr = []
 lte_resource = 100
 nr_resource = 120
-running_tti = 410
-GATest(pop_size, chromosomes, chromosomes_fitness, crossovered_chromosomes, crossovered_chromosomes_fitness, 
-       best_chromosome, best_chromosome_fitness, number_of_genes, packet_size, packet_count, signal_weight_lte,
-       signal_weight_nr, lte_resource, nr_resource, running_tti).main()
+running_tti = 110
+GATest(pop_size, chromosomes, chromosomes_fitness, selected_chromosomes, selected_chromosomes_fitness,
+       crossovered_chromosomes, crossovered_chromosomes_fitness, best_chromosome, best_chromosome_fitness,
+       number_of_genes, packet_size, packet_count, signal_weight_lte, signal_weight_nr, lte_resource,
+       nr_resource, running_tti).main()
