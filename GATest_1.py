@@ -6,8 +6,13 @@ import numpy as np
 class GATest:
     def __init__(self, pop_size, chromosomes, chromosomes_fitness, selected_chromosomes, selected_chromosomes_fitness,
                  crossovered_chromosomes, crossovered_chromosomes_fitness, best_chromosome, best_chromosome_fitness,
+<<<<<<< HEAD
                  number_of_genes, packet_size, packet_count, signal_weight_lte, signal_weight_nr, packet_deadline,
                  lte_resource, nr_resource, running_tti):
+=======
+                 number_of_genes, packet_size, packet_count, signal_weight_lte, signal_weight_nr, lte_resource,
+                 nr_resource, running_tti):
+>>>>>>> 604e27163fa2ae213874ad4b33992676d375feb3
         self.pop_size = pop_size
         self.chromosomes = chromosomes
         self.chromosomes_fitness = chromosomes_fitness
@@ -168,6 +173,11 @@ class GATest:
                     if ue_avg_nr[ue] != 0.0:
                         ue_r_R_nr[ue] = float(ue_max_rate_nr[ue]) / ue_avg_nr[ue]
 
+<<<<<<< HEAD
+=======
+                    if ue_avg_nr[m] != 0.0:
+                        ue_r_R_nr[m] = float(ue_max_rate_nr[m]) / ue_avg_nr[m]
+>>>>>>> 604e27163fa2ae213874ad4b33992676d375feb3
                 ue_r_R_lte_temp = copy.deepcopy(ue_r_R_lte)
                 ue_r_R_nr_temp = copy.deepcopy(ue_r_R_nr)
 
@@ -273,8 +283,16 @@ signal_weight_nr = []
 packet_deadline = []
 lte_resource = 100
 nr_resource = 120
+<<<<<<< HEAD
 running_tti = 500
 GATest(pop_size, chromosomes, chromosomes_fitness, selected_chromosomes, selected_chromosomes_fitness,
        crossovered_chromosomes, crossovered_chromosomes_fitness, best_chromosome, best_chromosome_fitness,
        number_of_genes, packet_size, packet_count, signal_weight_lte, signal_weight_nr, packet_deadline,
        lte_resource, nr_resource, running_tti).main()
+=======
+running_tti = 600
+GATest(pop_size, chromosomes, chromosomes_fitness, selected_chromosomes, selected_chromosomes_fitness,
+       crossovered_chromosomes, crossovered_chromosomes_fitness, best_chromosome, best_chromosome_fitness,
+       number_of_genes, packet_size, packet_count, signal_weight_lte, signal_weight_nr, lte_resource,
+       nr_resource, running_tti).main()
+>>>>>>> 604e27163fa2ae213874ad4b33992676d375feb3
