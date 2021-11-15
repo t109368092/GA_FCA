@@ -91,9 +91,10 @@ class GATest:
         self.constant_chromosome_fitness = self.fitness_calculate(self.constant_chromosome)
         print("Constant flow control ratio fitness:")
         print(self.constant_chromosome_fitness)
-        self.lte_chromosome_fitness = self.fitness_calculate(self.lte_chromosome)
-        print("Only LTE flow  ratio fitness:")
-        print(self.lte_chromosome_fitness)
+
+    def stable_sigmoid(self, x):
+        sig = np.where(x < 0, np.exp(x)/(1 + np.exp(x)), 1/(1 + np.exp(-x)))
+        return sig
 
     def chromosomes_generate(self):
         for _ in range(self.pop_size):
@@ -107,19 +108,19 @@ class GATest:
 
     def flows_generate(self):
         for _ in range(self.number_of_genes):
-            rand_packet_size = random.randint(10, 20)
+            rand_packet_size = random.uniform(5, 8)
             self.packet_size.append(rand_packet_size)
 
         for _ in range(self.number_of_genes):
-            rand_packet_count = random.randint(10, 20)
+            rand_packet_count = random.randint(5, 10)
             self.packet_count.append(rand_packet_count)
 
         for _ in range(self.number_of_genes):
-            rand_signal_weight_lte = random.randint(1, 5)
+            rand_signal_weight_lte = random.randint(1, 3)
             self.signal_weight_lte.append(rand_signal_weight_lte)
 
         for _ in range(self.number_of_genes):
-            rand_signal_weight_nr = random.randint(1, 5)
+            rand_signal_weight_nr = random.randint(1, 3)
             self.signal_weight_nr.append(rand_signal_weight_nr)
 
         for _ in range(self.number_of_genes):
@@ -153,7 +154,7 @@ class GATest:
             packets_to_nr = packets_to_nr.tolist()
             packets_to_lte = packets_to_lte.tolist()
 
-            for tti in range(10):
+            for tti in range(20):
                 resource_request_lte = []
                 resource_request_nr = []
                 ue_priority_lte = []
@@ -192,6 +193,8 @@ class GATest:
                         remain_resource_lte = remain_resource_lte - resource_request_lte[ue_priority_lte[allocate_lte_resource_ue_index]]
                         lte_buffer[ue_priority_lte[allocate_lte_resource_ue_index]] = []
                     allocate_lte_resource_ue_index = allocate_lte_resource_ue_index + 1
+                    print(remain_resource_lte)
+                    print(allocate_lte_resource_ue_index)
                 
                 while(remain_resource_nr > 0 and allocate_nr_resource_ue_index < self.number_of_genes):
                     if resource_request_nr[ue_priority_nr[allocate_nr_resource_ue_index]] <= remain_resource_nr:
@@ -210,7 +213,8 @@ class GATest:
                 ue_avg_nr = ue_avg_nr / (tti + 1)
                 ue_avg_lte = ue_avg_lte.tolist()
                 ue_avg_nr = ue_avg_nr.tolist()
-
+        print("ue_avg_lte:")
+        print(ue_avg_lte)
         return ue_avg_lte
 
     def fitness_calculate(self, chromosomes):
@@ -240,7 +244,7 @@ class GATest:
             packets_to_nr = packets_to_nr.tolist()
             packets_to_lte = packets_to_lte.tolist()
 
-            for tti in range(10):
+            for tti in range(20):
                 resource_request_lte = []
                 resource_request_nr = []
                 ue_priority_lte = []
@@ -297,17 +301,21 @@ class GATest:
                 ue_avg_nr = ue_avg_nr / (tti + 1)
                 ue_avg_lte = ue_avg_lte.tolist()
                 ue_avg_nr = ue_avg_nr.tolist()
-                
-            throughput_gain = prod(np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate))
             
+            print("ue_avg_lte_new")
+            print(ue_avg_lte)
+            print("ue_avg_nr_new")
+            print(ue_avg_nr)
+            throughput_gain = sum(self.stable_sigmoid((np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate)) / np.array(self.lte_chromosome_rate)))
+        
+            print((np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate)) / np.array(self.lte_chromosome_rate))
+
             fitness.append(throughput_gain)
 
         return fitness
 
     def select(self):
         fitness_temp = copy.deepcopy(self.chromosomes_fitness)
-        fitness_temp = np.asarray(fitness_temp, dtype = int)
-        fitness_temp = fitness_temp.tolist()
         chromosomes_temp = copy.deepcopy(self.chromosomes)
         self.selected_chromosomes = []
         

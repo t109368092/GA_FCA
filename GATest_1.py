@@ -217,8 +217,8 @@ class GATest:
 
     def select(self):
         fitness_temp = copy.deepcopy(self.chromosomes_fitness)
-        fitness_temp = np.asarray(fitness_temp, dtype = int)
-        fitness_temp = fitness_temp.tolist()
+        #fitness_temp = np.asarray(fitness_temp, dtype = int)
+        #fitness_temp = fitness_temp.tolist()
         chromosomes_temp = copy.deepcopy(self.chromosomes)
         self.selected_chromosomes = []
         
