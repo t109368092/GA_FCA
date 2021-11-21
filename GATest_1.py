@@ -51,7 +51,7 @@ class GATest:
         print("Best Chromosome: {}".format(self.best_chromosome))
         print("Best Chromosome Fitness Value: {}\n".format(self.best_chromosome_fitness))
 
-        self.tti_count = self.pop_size * 10
+        self.tti_count = self.pop_size * 20
         best_chromosomes_fitness = []
         while self.tti_count < self.running_tti:
             self.select()
@@ -78,7 +78,7 @@ class GATest:
             best_chromosomes_fitness.append(self.best_chromosome_fitness)
             print("Best Chromosomes Fitness Value: {}\n".format(best_chromosomes_fitness))
 
-            self.tti_count = self.tti_count + len(self.crossovered_chromosomes) * 10
+            self.tti_count = self.tti_count + len(self.crossovered_chromosomes) * 20
 
         print("LTE signal weight:")
         print(self.signal_weight_lte)
@@ -150,7 +150,7 @@ class GATest:
             packets_to_nr = packets_to_nr.tolist()
             packets_to_lte = packets_to_lte.tolist()
 
-            for tti in range(10):
+            for tti in range(20):
                 resource_request_lte = []
                 resource_request_nr = []
                 ue_priority_lte = []
@@ -292,7 +292,7 @@ signal_weight_nr = []
 packet_deadline = []
 lte_resource = 100
 nr_resource = 120
-running_tti = 500
+running_tti = 1000
 GATest(pop_size, chromosomes, chromosomes_fitness, selected_chromosomes, selected_chromosomes_fitness,
        crossovered_chromosomes, crossovered_chromosomes_fitness, best_chromosome, best_chromosome_fitness,
        number_of_genes, packet_size, packet_count, signal_weight_lte, signal_weight_nr, packet_deadline,

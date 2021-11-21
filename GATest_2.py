@@ -54,7 +54,7 @@ class GATest:
         print("Best Chromosome: {}".format(self.best_chromosome))
         print("Best Chromosome Fitness Value: {}\n".format(self.best_chromosome_fitness))
 
-        self.tti_count = self.pop_size * 10
+        self.tti_count = self.pop_size * 20
         best_chromosomes_fitness = []
         while self.tti_count < self.running_tti:
             self.select()
@@ -73,15 +73,20 @@ class GATest:
             print("New All Chromosomes: {}".format(self.chromosomes))
             print("New Fitness Value: {}\n".format(self.chromosomes_fitness))
 
-            self.best_chromosome = self.chromosomes[self.chromosomes_fitness.index(max(self.chromosomes_fitness))]
-            self.best_chromosome_fitness = max(self.chromosomes_fitness)
+            #self.best_chromosome = self.chromosomes[self.chromosomes_fitness.index(max(self.chromosomes_fitness))]
+            #self.best_chromosome_fitness = max(self.chromosomes_fitness)
+            #print("Best Chromosome: {}".format(self.best_chromosome))
+            #print("Best Chromosome Fitness Value: {}\n".format(self.best_chromosome_fitness))
+
+            self.best_chromosome = [self.chromosomes[self.chromosomes_fitness.index(max(self.chromosomes_fitness))]]
+            self.best_chromosome_fitness = self.fitness_calculate(self.best_chromosome)
             print("Best Chromosome: {}".format(self.best_chromosome))
             print("Best Chromosome Fitness Value: {}\n".format(self.best_chromosome_fitness))
 
             best_chromosomes_fitness.append(self.best_chromosome_fitness)
             print("Best Chromosomes Fitness Value: {}\n".format(best_chromosomes_fitness))
 
-            self.tti_count = self.tti_count + len(self.crossovered_chromosomes) * 10
+            self.tti_count = self.tti_count + len(self.crossovered_chromosomes) * 20
 
         print("LTE signal weight:")
         print(self.signal_weight_lte)
@@ -232,8 +237,8 @@ class GATest:
                 ue_avg_nr = ue_avg_nr / (tti + 1)
                 ue_avg_lte = ue_avg_lte.tolist()
                 ue_avg_nr = ue_avg_nr.tolist()
-        print("ue_avg_lte:")
-        print(ue_avg_lte)
+        #print("ue_avg_lte:")
+        #print(ue_avg_lte)
         return ue_avg_lte
 
     def fitness_calculate(self, chromosomes):
@@ -342,15 +347,32 @@ class GATest:
                 ue_avg_lte = ue_avg_lte.tolist()
                 ue_avg_nr = ue_avg_nr.tolist()
             
-            print("ue_avg_lte_new")
-            print(ue_avg_lte)
-            print("ue_avg_nr_new")
-            print(ue_avg_nr)
-            throughput_gain = sum(self.stable_sigmoid((np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate)) / np.array(self.lte_chromosome_rate)))
-        
-            print((np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate)) / np.array(self.lte_chromosome_rate))
+            #print("ue_avg_lte_new")
+            #print(ue_avg_lte)
+            #print("ue_avg_nr_new")
+            #print(ue_avg_nr)
+            throughput_gain = (np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate)) / np.array(self.lte_chromosome_rate)
+            throughput_gain_normalize = self.stable_sigmoid(throughput_gain)
+            throughput_gain_avg = prod(throughput_gain_normalize) ** (1 / self.number_of_genes)
+            
+            avg_throughput_lte = sum(ue_avg_lte) / self.number_of_genes
+            avg_throughput_nr = sum(ue_avg_nr) / self.number_of_genes
+            throughput_sum = avg_throughput_lte + avg_throughput_nr
+            print("throughput_sum:")
+            print(throughput_sum)
 
-            fitness.append(throughput_gain)
+            throughput_gain_sum = sum(np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate))
+            print("throughput_gain_sum:")
+            print(throughput_gain_sum)
+            #print((np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate)) / np.array(self.lte_chromosome_rate))
+
+            x = sum(np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate)) ** 2
+            x_ = sum((np.array(ue_avg_nr) + np.array(ue_avg_lte) - np.array(self.lte_chromosome_rate)) ** 2) * self.number_of_genes
+            jain_fairness = x/x_
+            print("jain_fairness:")
+            print(jain_fairness)
+
+            fitness.append(throughput_gain_avg)
 
         return fitness
 
@@ -410,7 +432,7 @@ signal_weight_nr = []
 packet_deadline = []
 lte_resource = 100
 nr_resource = 120
-running_tti = 500
+running_tti = 1000
 GATest(pop_size, chromosomes, chromosomes_fitness, selected_chromosomes, selected_chromosomes_fitness,
        crossovered_chromosomes, crossovered_chromosomes_fitness, best_chromosome, best_chromosome_fitness,
        number_of_genes, packet_size, packet_count, signal_weight_lte, signal_weight_nr, packet_deadline,
