@@ -6,7 +6,7 @@ from math import prod
 
 class GATest:
     def __init__(self, fitness_calculate_method, crossover_method,number_of_genes, pop_size, lte_resource, nr_resource, tti_per_chromosome, running_tti,
-                 packet_size_range, packet_count_range_type0, packet_count_range_type1, packet_type1_gap_time, signal_weight_lte_range, signal_weight_nr_range,packet_deadline_range):
+                 packet_size_range, packet_count_range, video_packet_gap_time, signal_weight_lte_range, signal_weight_nr_range,packet_deadline_range):
         if crossover_method == 1:
             self.crossover = self.crossover_single
         elif crossover_method == 2:
@@ -20,9 +20,8 @@ class GATest:
         self.running_tti = running_tti
 
         self.packet_size_range = packet_size_range
-        self.packet_count_range_type0 = packet_count_range_type0
-        self.packet_count_range_type1 = packet_count_range_type1
-        self.packet_type1_gap_time = packet_type1_gap_time
+        self.packet_count_range = packet_count_range
+        self.video_packet_gap_time = video_packet_gap_time
         self.signal_weight_lte_range = signal_weight_lte_range
         self.signal_weight_nr_range = signal_weight_nr_range
         self.packet_deadline_range = packet_deadline_range
@@ -34,7 +33,6 @@ class GATest:
         self.crossovered_chromosomes = []
         self.crossovered_chromosomes_fitness = []
         self.best_chromosome = []
-        self.packet_type = []
         self.packet_size = []
         self.packet_count = []
         self.signal_weight_lte = []
@@ -96,7 +94,7 @@ class GATest:
             best_chromosomes_fitness.append(self.best_chromosome_fitness)
             print("Best Chromosomes Fitness Value: {}\n".format(best_chromosomes_fitness))
 
-            self.tti_count = self.tti_count + len(self.crossovered_chromosomes) * tti_per_chromosome
+            self.tti_count = self.tti_count + len(self.crossovered_chromosomes) * self.tti_per_chromosome
 
         self.best_chromosome_fitness = self.fitness_calculate(self.best_chromosome, True)
         seventy_chromosome_fitness = self.fitness_calculate(seventy_chromosome, True)
@@ -129,18 +127,13 @@ class GATest:
 
     def flows_generate(self):
         for _ in range(self.number_of_genes):
-            rand_packet_type = random.randint(0, 1)
-            #rand_packet_type = 0
-            self.packet_type.append(rand_packet_type)
+            rand_packet_size_cbr = random.uniform(self.packet_size_range["cbr"][0], self.packet_size_range["cbr"][1])
+            rand_packet_size_video = random.uniform(self.packet_size_range["video"][0], self.packet_size_range["video"][1])
+            self.packet_size.append({"cbr": rand_packet_size_cbr, "video": rand_packet_size_video})
 
-            rand_packet_size = random.uniform(self.packet_size_range[0], self.packet_size_range[1])
-            self.packet_size.append(rand_packet_size)
-
-            if rand_packet_type == 0:
-                rand_packet_count = random.randint(self.packet_count_range_type0[0], self.packet_count_range_type0[1])
-            elif rand_packet_type == 1:
-                rand_packet_count = random.randint(self.packet_count_range_type1[0], self.packet_count_range_type1[1])
-            self.packet_count.append(rand_packet_count)
+            rand_packet_count_cbr = random.randint(self.packet_count_range["cbr"][0], self.packet_count_range["cbr"][1])
+            rand_packet_count_video = random.randint(self.packet_count_range["video"][0], self.packet_count_range["video"][1])
+            self.packet_count.append({"cbr": rand_packet_count_cbr, "video": rand_packet_count_video})
 
             rand_signal_weight_lte = random.uniform(self.signal_weight_lte_range[0], self.signal_weight_lte_range[1])
             self.signal_weight_lte.append(rand_signal_weight_lte)
@@ -148,12 +141,12 @@ class GATest:
             rand_signal_weight_nr = random.uniform(self.signal_weight_nr_range[0], self.signal_weight_nr_range[1])
             self.signal_weight_nr.append(rand_signal_weight_nr)
 
-            rand_packet_deadline = random.randint(self.packet_deadline_range[0], self.packet_deadline_range[1])
-            self.packet_deadline.append(rand_packet_deadline)
+            rand_packet_deadline_cbr = random.randint(self.packet_deadline_range["cbr"][0], self.packet_deadline_range["cbr"][1])
+            rand_packet_deadline_video = random.randint(self.packet_deadline_range["video"][0], self.packet_deadline_range["video"][1])
+            self.packet_deadline.append({"cbr": rand_packet_deadline_cbr, "video": rand_packet_deadline_video})
 
     def fitness_calculate(self, chromosomes, write_data):
         chromosomes_count = len(chromosomes)
-        nr_ratio = np.array(chromosomes)
 
         fitness = []
         for i in range(chromosomes_count):
@@ -167,8 +160,8 @@ class GATest:
             ue_loss_nr = []
             ue_delay_nr = []
             for _ in range(self.number_of_genes):
-                lte_buffer.append([])
-                nr_buffer.append([])
+                lte_buffer.append({"cbr": [], "video": []})
+                nr_buffer.append({"cbr": [], "video": []})
                 ue_avg_lte.append(0.0)
                 ue_avg_nr.append(0.0)
                 ue_loss_lte.append([0, 0])
@@ -180,12 +173,6 @@ class GATest:
             ue_r_R_lte = copy.deepcopy(ue_max_rate_lte)
             ue_r_R_nr = copy.deepcopy(ue_max_rate_nr)
 
-            packets_to_nr = np.array(self.packet_count) * nr_ratio[i] / 10
-            packets_to_nr = np.asarray(packets_to_nr, dtype = int)
-            packets_to_lte = np.array(self.packet_count) - packets_to_nr
-            packets_to_nr = packets_to_nr.tolist()
-            packets_to_lte = packets_to_lte.tolist()
-
             for tti in range(self.tti_per_chromosome):
                 resource_request_lte = []
                 resource_request_nr = []
@@ -193,22 +180,38 @@ class GATest:
                 ue_priority_nr = []
 
                 for ue in range(self.number_of_genes):
-                    if self.packet_type[ue] == 0:
-                        lte_buffer[ue].append(packets_to_lte[ue])
-                        nr_buffer[ue].append(packets_to_nr[ue])
-                    elif self.packet_type[ue] == 1:
-                        if tti % self.packet_type1_gap_time == 0:
-                            lte_buffer[ue].append(packets_to_lte[ue])
-                            nr_buffer[ue].append(packets_to_nr[ue])
-                        else:
-                            lte_buffer[ue].append(0)
-                            nr_buffer[ue].append(0)
+                    packet_count_to_nr_cbr = int(self.packet_count[ue]["cbr"] * chromosomes[i][ue] / 10)
+                    packet_count_to_lte_cbr = self.packet_count[ue]["cbr"] - packet_count_to_nr_cbr
+                    packet_to_lte_cbr = {"type": "cbr", "count": packet_count_to_lte_cbr, "size": self.packet_size[ue]["cbr"], "time_stamp": tti, "deadline": self.packet_deadline[ue]["cbr"]}
+                    packet_to_nr_cbr = {"type": "cbr", "count": packet_count_to_nr_cbr, "size": self.packet_size[ue]["cbr"], "time_stamp": tti, "deadline": self.packet_deadline[ue]["cbr"]}
+                    lte_buffer[ue]["cbr"].append(packet_to_lte_cbr)
+                    nr_buffer[ue]["cbr"].append(packet_to_nr_cbr)
 
-                    resource_request_lte.append(sum(lte_buffer[ue]) * self.packet_size[ue] / self.signal_weight_lte[ue])
-                    resource_request_nr.append(sum(nr_buffer[ue]) * self.packet_size[ue] / self.signal_weight_nr[ue])
+                    if tti % self.video_packet_gap_time == 0:
+                        packet_count_to_nr_video = int(self.packet_count[ue]["video"] * chromosomes[i][ue] / 10)
+                        packet_count_to_lte_video = self.packet_count[ue]["video"] - packet_count_to_nr_video
+                        packet_to_lte_video = {"type": "video", "count": packet_count_to_lte_video, "size": self.packet_size[ue]["video"], "time_stamp": tti, "deadline": self.packet_deadline[ue]["video"]}
+                        packet_to_nr_video = {"type": "video", "count": packet_count_to_nr_video, "size": self.packet_size[ue]["video"], "time_stamp": tti, "deadline": self.packet_deadline[ue]["video"]}
+                        lte_buffer[ue]["video"].append(packet_to_lte_video)
+                        nr_buffer[ue]["video"].append(packet_to_nr_video)
 
-                    ue_loss_lte[ue][1] = ue_loss_lte[ue][1] + packets_to_lte[ue]
-                    ue_loss_nr[ue][1] = ue_loss_nr[ue][1] + packets_to_nr[ue]
+                    send_data_size_request_lte = 0
+                    for packet in lte_buffer[ue]["cbr"]:
+                        send_data_size_request_lte = send_data_size_request_lte + (packet["count"] * packet["size"])
+                    for packet in lte_buffer[ue]["video"]:
+                        send_data_size_request_lte = send_data_size_request_lte + (packet["count"] * packet["size"])
+
+                    send_data_size_request_nr = 0
+                    for packet in nr_buffer[ue]["cbr"]:
+                        send_data_size_request_nr = send_data_size_request_nr + (packet["count"] * packet["size"])
+                    for packet in nr_buffer[ue]["video"]:
+                        send_data_size_request_nr = send_data_size_request_nr + (packet["count"] * packet["size"])
+
+                    resource_request_lte.append(send_data_size_request_lte / self.signal_weight_lte[ue])
+                    resource_request_nr.append(send_data_size_request_nr / self.signal_weight_nr[ue])
+
+                    #ue_loss_lte[ue][1] = ue_loss_lte[ue][1] + packets_to_lte[ue]
+                    #ue_loss_nr[ue][1] = ue_loss_nr[ue][1] + packets_to_nr[ue]
 
                     if ue_avg_lte[ue] != 0.0:
                         ue_r_R_lte[ue] = float(ue_max_rate_lte[ue]) / ue_avg_lte[ue]
@@ -224,6 +227,7 @@ class GATest:
                     ue_priority_nr.append(ue_r_R_nr_temp.index(max(ue_r_R_nr_temp)))
                     ue_r_R_nr_temp[ue_r_R_nr_temp.index(max(ue_r_R_nr_temp))] = 0
 
+                print(resource_request_lte)
                 remain_resource_lte = self.lte_resource
                 remain_resource_nr = self.nr_resource
                 allocate_lte_resource_ue_index = 0
@@ -233,21 +237,35 @@ class GATest:
                 while remain_resource_lte > 0 and allocate_lte_resource_ue_index < self.number_of_genes:
                     current_ue_lte = ue_priority_lte[allocate_lte_resource_ue_index]
                     if resource_request_lte[current_ue_lte] <= remain_resource_lte:
-                        for index in range(len(lte_buffer[current_ue_lte])):
-                            ue_delay_lte[current_ue_lte][0] = ue_delay_lte[current_ue_lte][0] + lte_buffer[current_ue_lte][index] * (len(lte_buffer[current_ue_lte]) - 1 - index)
-                        ue_delay_lte[current_ue_lte][1] = ue_delay_lte[current_ue_lte][1] + sum(lte_buffer[current_ue_lte])
-                        ue_avg_lte[current_ue_lte] = ue_avg_lte[current_ue_lte] + sum(lte_buffer[current_ue_lte]) * self.packet_size[current_ue_lte]
+                        #for index in range(len(lte_buffer[current_ue_lte])):
+                        #    ue_delay_lte[current_ue_lte][0] = ue_delay_lte[current_ue_lte][0] + lte_buffer[current_ue_lte][index] * (len(lte_buffer[current_ue_lte]) - 1 - index)
+                        #ue_delay_lte[current_ue_lte][1] = ue_delay_lte[current_ue_lte][1] + sum(lte_buffer[current_ue_lte])
+                        ue_avg_lte[current_ue_lte] = ue_avg_lte[current_ue_lte] + (resource_request_lte[current_ue_lte] * self.signal_weight_lte[current_ue_lte])
                         remain_resource_lte = remain_resource_lte - resource_request_lte[current_ue_lte]
-                        lte_buffer[current_ue_lte] = []
+                        lte_buffer[current_ue_lte] = {"cbr": [], "video": []}
 
                     if resource_request_lte[current_ue_lte] > remain_resource_lte:
-                        allocatable_packets = remain_resource_lte * self.signal_weight_lte[current_ue_lte] / self.packet_size[current_ue_lte]
-                        while len(lte_buffer[current_ue_lte]) > 0 and allocatable_packets > lte_buffer[current_ue_lte][0]:
-                            allocatable_packets = allocatable_packets - lte_buffer[current_ue_lte][0]
-                            ue_delay_lte[current_ue_lte][0] = ue_delay_lte[current_ue_lte][0] + lte_buffer[current_ue_lte][0] * (len(lte_buffer[current_ue_lte]) - 1)
-                            ue_delay_lte[current_ue_lte][1] = ue_delay_lte[current_ue_lte][1] + lte_buffer[current_ue_lte][0]
-                            ue_avg_lte[current_ue_lte] = ue_avg_lte[current_ue_lte] + lte_buffer[current_ue_lte][0] * self.packet_size[current_ue_lte]
-                            del lte_buffer[current_ue_lte][0]
+                        sent_packet = []
+                        for packet in lte_buffer[current_ue_lte]["video"]:
+                            packet_resource_request = (packet["count"] * packet["size"]) / self.signal_weight_lte[current_ue_lte]
+                            if packet_resource_request <= remain_resource_lte:
+                                ue_avg_lte[current_ue_lte] = ue_avg_lte[current_ue_lte] + (packet["count"] * packet["size"])
+                                remain_resource_lte = remain_resource_lte - packet_resource_request
+                                sent_packet.append(packet)
+                        for del_packet in sent_packet:
+                            lte_buffer[current_ue_lte]["video"].remove(del_packet)
+
+                        sent_packet = []
+                        for packet in lte_buffer[current_ue_lte]["cbr"]:
+                            packet_resource_request = (packet["count"] * packet["size"]) / self.signal_weight_lte[current_ue_lte]
+                            if packet_resource_request <= remain_resource_lte:
+                                ue_avg_lte[current_ue_lte] = ue_avg_lte[current_ue_lte] + (packet["count"] * packet["size"])
+                                remain_resource_lte = remain_resource_lte - packet_resource_request
+                                sent_packet.append(packet)
+                        for del_packet in sent_packet:
+                            lte_buffer[current_ue_lte]["cbr"].remove(del_packet)
+                        #ue_delay_lte[current_ue_lte][0] = ue_delay_lte[current_ue_lte][0] + lte_buffer[current_ue_lte][0] * (len(lte_buffer[current_ue_lte]) - 1)
+                        #ue_delay_lte[current_ue_lte][1] = ue_delay_lte[current_ue_lte][1] + lte_buffer[current_ue_lte][0]
                         remain_resource_lte = 0
 
                     allocate_lte_resource_ue_index = allocate_lte_resource_ue_index + 1
@@ -255,71 +273,110 @@ class GATest:
                 while remain_resource_nr > 0 and allocate_nr_resource_ue_index < self.number_of_genes:
                     current_ue_nr = ue_priority_nr[allocate_nr_resource_ue_index]
                     if resource_request_nr[current_ue_nr] <= remain_resource_nr:
-                        for index in range(len(nr_buffer[current_ue_nr])):
-                            ue_delay_nr[current_ue_nr][0] = ue_delay_nr[current_ue_nr][0] + nr_buffer[current_ue_nr][index] * (len(nr_buffer[current_ue_nr]) - 1 - index)
-                        ue_delay_nr[current_ue_nr][1] = ue_delay_nr[current_ue_nr][1] + sum(nr_buffer[current_ue_nr])
-                        ue_avg_nr[current_ue_nr] = ue_avg_nr[current_ue_nr] + sum(nr_buffer[current_ue_nr]) * self.packet_size[current_ue_nr]
+                        #for index in range(len(nr_buffer[current_ue_nr])):
+                            #ue_delay_nr[current_ue_nr][0] = ue_delay_nr[current_ue_nr][0] + nr_buffer[current_ue_nr][index] * (len(nr_buffer[current_ue_nr]) - 1 - index)
+                        #ue_delay_nr[current_ue_nr][1] = ue_delay_nr[current_ue_nr][1] + sum(nr_buffer[current_ue_nr])
+                        ue_avg_nr[current_ue_nr] = ue_avg_nr[current_ue_nr] + (resource_request_nr[current_ue_nr] * self.signal_weight_nr[current_ue_nr])
                         remain_resource_nr = remain_resource_nr - resource_request_nr[current_ue_nr]
-                        nr_buffer[current_ue_nr] = []
+                        nr_buffer[current_ue_nr] = {"cbr": [], "video": []}
 
                     if resource_request_nr[current_ue_nr] > remain_resource_nr:
-                        allocatable_packets = remain_resource_nr * self.signal_weight_nr[current_ue_nr] / self.packet_size[current_ue_nr]
-                        while len(nr_buffer[current_ue_nr]) > 0 and allocatable_packets > nr_buffer[current_ue_nr][0]:
-                            allocatable_packets = allocatable_packets - nr_buffer[current_ue_nr][0]
-                            ue_delay_nr[current_ue_nr][0] = ue_delay_nr[current_ue_nr][0] + nr_buffer[current_ue_nr][0] * (len(nr_buffer[current_ue_nr]) - 1)
-                            ue_delay_nr[current_ue_nr][1] = ue_delay_nr[current_ue_nr][1] + nr_buffer[current_ue_nr][0]
-                            ue_avg_nr[current_ue_nr] = ue_avg_nr[current_ue_nr] + nr_buffer[current_ue_nr][0] * self.packet_size[current_ue_nr]
-                            del nr_buffer[current_ue_nr][0]
-                        remain_resource_nr = 0
+                        sent_packet = []
+                        for packet in nr_buffer[current_ue_nr]["video"]:
+                            packet_resource_request = (packet["count"] * packet["size"]) / self.signal_weight_nr[current_ue_nr]
+                            if packet_resource_request <= remain_resource_nr:
+                                ue_avg_nr[current_ue_nr] = ue_avg_nr[current_ue_nr] + (packet["count"] * packet["size"])
+                                remain_resource_nr = remain_resource_nr - packet_resource_request
+                                sent_packet.append(packet)
+                        for del_packet in sent_packet:
+                            nr_buffer[current_ue_nr]["video"].remove(del_packet)
+
+                        sent_packet = []
+                        for packet in nr_buffer[current_ue_nr]["cbr"]:
+                            packet_resource_request = (packet["count"] * packet["size"]) / self.signal_weight_nr[current_ue_nr]
+                            if packet_resource_request <= remain_resource_nr:
+                                ue_avg_nr[current_ue_nr] = ue_avg_nr[current_ue_nr] + (packet["count"] * packet["size"])
+                                remain_resource_nr = remain_resource_nr - packet_resource_request
+                                sent_packet.append(packet)
+                        for del_packet in sent_packet:
+                            nr_buffer[current_ue_nr]["cbr"].remove(del_packet)
+                        #ue_delay_lte[current_ue_lte][0] = ue_delay_lte[current_ue_lte][0] + lte_buffer[current_ue_lte][0] * (len(lte_buffer[current_ue_lte]) - 1)
+                        #ue_delay_lte[current_ue_lte][1] = ue_delay_lte[current_ue_lte][1] + lte_buffer[current_ue_lte][0]
+                        remain_resource_lte = 0
                     
                     allocate_nr_resource_ue_index = allocate_nr_resource_ue_index + 1
 
-                for ue in range(self.number_of_genes):
-                    while len(lte_buffer[ue]) > self.packet_deadline[ue]:
-                        ue_loss_lte[ue][0] = ue_loss_lte[ue][0] + lte_buffer[ue][0]
-                        del lte_buffer[ue][0]
-                    
-                    while len(nr_buffer[ue]) > self.packet_deadline[ue]:
-                        ue_loss_nr[ue][0] = ue_loss_nr[ue][0] + packets_to_nr[ue]
-                        del nr_buffer[ue][0]
-                        
                 ue_avg_lte = ue_avg_lte / (tti + 1)
                 ue_avg_nr = ue_avg_nr / (tti + 1)
                 ue_avg_lte = ue_avg_lte.tolist()
                 ue_avg_nr = ue_avg_nr.tolist()
 
-            avg_delay_lte_x, avg_delay_lte_y, avg_delay_nr_x, avg_delay_nr_y = 0, 0, 0, 0
-            for ue in range(self.number_of_genes):
-                avg_delay_lte_x = avg_delay_lte_x + ue_delay_lte[ue][0]
-                avg_delay_lte_y = avg_delay_lte_y + ue_delay_lte[ue][1]
-                avg_delay_nr_x = avg_delay_nr_x + ue_delay_nr[ue][0]
-                avg_delay_nr_y = avg_delay_nr_y + ue_delay_nr[ue][1]
-            avg_delay_x = avg_delay_lte_x + avg_delay_nr_x
-            avg_delay_y = avg_delay_lte_y + avg_delay_nr_y
-            avg_delay = avg_delay_x / avg_delay_y
+                for ue in range(self.number_of_genes):
 
-            avg_loss_lte_x, avg_loss_lte_y, avg_loss_nr_x, avg_loss_nr_y = 0, 0, 0, 0
-            for ue in range(self.number_of_genes):
-                avg_loss_lte_x = avg_loss_lte_x + ue_loss_lte[ue][0]
-                avg_loss_lte_y = avg_loss_lte_y + ue_loss_lte[ue][1]
-                avg_loss_nr_x = avg_loss_nr_x + ue_loss_nr[ue][0]
-                avg_loss_nr_y = avg_loss_nr_y + ue_loss_nr[ue][1]
-            avg_loss_x = avg_loss_lte_x + avg_loss_nr_x
-            avg_loss_y = avg_loss_lte_y + avg_loss_nr_y
-            avg_loss = avg_loss_x / avg_loss_y
+                    over_deadline_packet = []
+                    for packet in lte_buffer[ue]["cbr"]:
+                        if tti - packet["time_stamp"] >= packet["deadline"]:
+                            over_deadline_packet.append(packet)
+                    for del_packet in over_deadline_packet:
+                        lte_buffer[ue]["cbr"].remove(del_packet)
+                        #ue_loss_lte[ue][0] = ue_loss_lte[ue][0] + packets_to_lte[ue]
+
+                    over_deadline_packet = []
+                    for packet in lte_buffer[ue]["video"]:
+                        if tti - packet["time_stamp"] >= packet["deadline"]:
+                            over_deadline_packet.append(packet)
+                    for del_packet in over_deadline_packet:
+                        lte_buffer[ue]["video"].remove(del_packet)
+                        #ue_loss_lte[ue][0] = ue_loss_lte[ue][0] + packets_to_lte[ue]
+
+                    over_deadline_packet = []
+                    for packet in nr_buffer[ue]["cbr"]:
+                        if tti - packet["time_stamp"] >= packet["deadline"]:
+                            over_deadline_packet.append(packet)
+                    for del_packet in over_deadline_packet:
+                        nr_buffer[ue]["cbr"].remove(del_packet)
+                        #ue_loss_nr[ue][0] = ue_loss_nr[ue][0] + packets_to_nr[ue]
+
+                    over_deadline_packet = []
+                    for packet in nr_buffer[ue]["video"]:
+                        if tti - packet["time_stamp"] >= packet["deadline"]:
+                            over_deadline_packet.append(packet)
+                    for del_packet in over_deadline_packet:
+                        nr_buffer[ue]["video"].remove(del_packet)
+                        #ue_loss_nr[ue][0] = ue_loss_nr[ue][0] + packets_to_nr[ue]
+
+            #avg_delay_lte_x, avg_delay_lte_y, avg_delay_nr_x, avg_delay_nr_y = 0, 0, 0, 0
+            #for ue in range(self.number_of_genes):
+            #    avg_delay_lte_x = avg_delay_lte_x + ue_delay_lte[ue][0]
+            #    avg_delay_lte_y = avg_delay_lte_y + ue_delay_lte[ue][1]
+            #    avg_delay_nr_x = avg_delay_nr_x + ue_delay_nr[ue][0]
+            #    avg_delay_nr_y = avg_delay_nr_y + ue_delay_nr[ue][1]
+            #avg_delay_x = avg_delay_lte_x + avg_delay_nr_x
+            #avg_delay_y = avg_delay_lte_y + avg_delay_nr_y
+            #avg_delay = avg_delay_x / avg_delay_y
+
+            #avg_loss_lte_x, avg_loss_lte_y, avg_loss_nr_x, avg_loss_nr_y = 0, 0, 0, 0
+            #for ue in range(self.number_of_genes):
+            #    avg_loss_lte_x = avg_loss_lte_x + ue_loss_lte[ue][0]
+            #    avg_loss_lte_y = avg_loss_lte_y + ue_loss_lte[ue][1]
+            #    avg_loss_nr_x = avg_loss_nr_x + ue_loss_nr[ue][0]
+            #    avg_loss_nr_y = avg_loss_nr_y + ue_loss_nr[ue][1]
+            #avg_loss_x = avg_loss_lte_x + avg_loss_nr_x
+            #avg_loss_y = avg_loss_lte_y + avg_loss_nr_y
+            #avg_loss = avg_loss_x / avg_loss_y
 
             avg_throughput = sum(np.array(ue_avg_lte) + np.array(ue_avg_nr)) / self.number_of_genes
             throughput_fairness = prod(np.array(ue_avg_nr) + np.array(ue_avg_lte)) ** (1 / self.number_of_genes)
-            delay_loss_indicator = (self.stable_sigmoid((1.5 - avg_delay) / 1.5) * self.stable_sigmoid((0.5 - avg_loss) / 0.5)) ** 1 / 2
+            #delay_loss_indicator = (self.stable_sigmoid((1.5 - avg_delay) / 1.5) * self.stable_sigmoid((0.5 - avg_loss) / 0.5)) ** 1 / 2
             if self.fitness_calculate_method == 1:
                 fitness.append(avg_throughput)
             elif self.fitness_calculate_method == 2:
                 fitness.append(throughput_fairness)
-            elif self.fitness_calculate_method == 3:
-                fitness.append(delay_loss_indicator)
+            #elif self.fitness_calculate_method == 3:
+            #    fitness.append(delay_loss_indicator)
             
             if write_data == True:
-                self.data.append([avg_throughput, throughput_fairness, avg_delay, avg_loss])
+                self.data.append([avg_throughput, throughput_fairness, 0, 0])
 
         return fitness
 
@@ -375,8 +432,8 @@ class GATest:
             del chromosomes_fitness_temp[max_index]
         
 
-crossover_method = 2
-fitness_calculate_method = [1,2,3]
+crossover_method = 1
+fitness_calculate_method = [1]
 simulation_times = 100
 
 pop_size = 10
@@ -386,13 +443,12 @@ nr_resource = 120
 tti_per_chromosome = 20
 running_tti = 1000
 
-packet_size_range = [6,8]
-packet_count_range_type0 = [6,8]
-packet_count_range_type1 = [15,20]
-packet_type1_gap_time = 3
-signal_weight_lte_range = [1,3]
-signal_weight_nr_range = [1,3]
-packet_deadline_range = [3,6]
+packet_size_range = {"cbr": [5,10], "video": [10,12]}
+packet_count_range = {"cbr": [8,10], "video": [8,10]}
+video_packet_gap_time = 5
+signal_weight_lte_range = [2, 5]
+signal_weight_nr_range = [2, 5]
+packet_deadline_range = {"cbr": [3, 5], "video": [5, 8]}
 
 f = open('ga_fca.csv', 'w')
 w = csv.writer(f)
@@ -405,7 +461,8 @@ for method in fitness_calculate_method:
     w.writerow(["", "Avg Throughput", "Throughput Fairness", "Delay", "Loss"])
     for _ in range(simulation_times):
         ga_fca = GATest(method, crossover_method, pop_size, number_of_genes,lte_resource, nr_resource, tti_per_chromosome, running_tti,
-                        packet_size_range, packet_count_range_type0, packet_count_range_type1, packet_type1_gap_time, signal_weight_lte_range, signal_weight_nr_range, packet_deadline_range)
+                        packet_size_range, packet_count_range, video_packet_gap_time, signal_weight_lte_range, signal_weight_nr_range,
+                        packet_deadline_range)
         data = ga_fca.main()
         data_array.append(data)
 
