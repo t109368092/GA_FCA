@@ -29,7 +29,6 @@ class GATest:
         self.chromosomes = []
         self.chromosomes_fitness = []
         self.selected_chromosomes = []
-        self.selected_chromosomes_fitness = []
         self.crossovered_chromosomes = []
         self.crossovered_chromosomes_fitness = []
         self.best_chromosome = []
@@ -47,7 +46,7 @@ class GATest:
         self.signal_generate()
         self.flows_generate()
 
-        if self.fitness_calculate_method == 1 or self.fitness_calculate_method == 2 or self.fitness_calculate_method == 3:
+        if self.fitness_calculate_method != 0:
             self.chromosomes_generate()
             print("All Chromosomes: {}".format(self.chromosomes))
 
@@ -60,13 +59,9 @@ class GATest:
             print("Best Chromosome Fitness Value: {}\n".format(self.best_chromosome_fitness))
 
             self.tti_count = self.pop_size * self.tti_per_chromosome
-            best_chromosomes_fitness = []
             while self.tti_count < self.running_tti:
                 self.select()
                 print("Selected Chromosomes: {}".format(self.selected_chromosomes))
-
-                self.selected_chromosomes_fitness = self.fitness_calculate(self.selected_chromosomes, False)
-                print("Selected Chromosomes Fitness Value: {}\n".format(self.selected_chromosomes_fitness))
 
                 self.crossover(self.selected_chromosomes)
                 print("Crossovered Chromosomes: {}".format(self.crossovered_chromosomes))
@@ -83,14 +78,11 @@ class GATest:
                 print("Best Chromosome: {}".format(self.best_chromosome))
                 print("Best Chromosome Fitness Value: {}\n".format(self.best_chromosome_fitness))
 
-                best_chromosomes_fitness.append(self.best_chromosome_fitness)
-                print("Best Chromosomes Fitness Value: {}\n".format(best_chromosomes_fitness))
-
                 self.tti_count = self.tti_count + len(self.crossovered_chromosomes) * self.tti_per_chromosome
 
             self.best_chromosome_fitness = self.fitness_calculate(self.best_chromosome, True)
 
-        if self.fitness_calculate_method == 4:
+        if self.fitness_calculate_method == 0:
             seventy_chromosome = [[]]
             fifty_chromosome = [[]]
             thirty_chromosome = [[]]
@@ -147,10 +139,8 @@ class GATest:
             self.packet_deadline.append({"cbr": rand_packet_deadline_cbr, "video": rand_packet_deadline_video})
 
     def fitness_calculate(self, chromosomes, write_data):
-        chromosomes_count = len(chromosomes)
-
         fitness = []
-        for i in range(chromosomes_count):
+        for i in range(len(chromosomes)):
             tti = 0
             lte_buffer = []
             nr_buffer = []
@@ -376,6 +366,7 @@ class GATest:
             avg_video_delay_x = avg_video_delay_lte_x + avg_video_delay_nr_x
             avg_video_delay_y = avg_video_delay_lte_y + avg_video_delay_nr_y
             avg_video_delay = avg_video_delay_x / avg_video_delay_y
+            avg_delay = (avg_cbr_delay_x + avg_video_delay_x) / (avg_cbr_delay_y + avg_video_delay_y)
 
             avg_cbr_loss_lte_x, avg_cbr_loss_lte_y, avg_video_loss_lte_x, avg_video_loss_lte_y = 0, 0, 0, 0
             avg_cbr_loss_nr_x, avg_cbr_loss_nr_y, avg_video_loss_nr_x, avg_video_loss_nr_y  = 0, 0, 0, 0
@@ -394,22 +385,34 @@ class GATest:
             avg_video_loss_x = avg_video_loss_lte_x + avg_video_loss_nr_x
             avg_video_loss_y = avg_video_loss_lte_y + avg_video_loss_nr_y
             avg_video_loss = avg_video_loss_x / avg_video_loss_y
+            avg_loss = (avg_cbr_loss_x + avg_video_loss_x) / (avg_cbr_loss_y + avg_video_loss_y)
 
-            avg_throughput = sum(np.array(ue_avg_lte) + np.array(ue_avg_nr)) / self.number_of_genes
-            throughput_fairness = prod(np.array(ue_avg_nr) + np.array(ue_avg_lte)) ** (1 / self.number_of_genes)
+            throughput_lte_nr = (np.array(ue_avg_lte) + np.array(ue_avg_nr)).tolist()
+            avg_throughput = sum(throughput_lte_nr) / self.number_of_genes
+            #throughput_fairness = prod(np.array(ue_avg_nr) + np.array(ue_avg_lte)) ** (1 / self.number_of_genes)
+
+            jain_fairness = (sum(throughput_lte_nr) ** 2) / (self.number_of_genes * sum(np.array(throughput_lte_nr) ** 2))
+
+            throughput_deviation = np.array(throughput_lte_nr) - avg_throughput
+            standard_deviation = (sum(throughput_deviation ** 2) / self.number_of_genes) ** (1 / 2)
+            standard_deviation_indicator = 1 / standard_deviation
+            sd_throughput_ratio = standard_deviation / avg_throughput
+
             delay_loss_indicator = (self.stable_sigmoid((1.5 - avg_cbr_delay) / 1.5) * self.stable_sigmoid((0.2 - avg_cbr_loss) / 0.2) * self.stable_sigmoid((1.5 - avg_video_delay) / 1.5) * self.stable_sigmoid((0.01 - avg_video_loss) / 0.01)) ** 1 / 4
             
             if self.fitness_calculate_method == 1:
                 fitness.append(avg_throughput)
             elif self.fitness_calculate_method == 2:
-                fitness.append(throughput_fairness)
+                fitness.append(jain_fairness)
             elif self.fitness_calculate_method == 3:
+                fitness.append(standard_deviation_indicator)    
+            elif self.fitness_calculate_method == 4:
                 fitness.append(delay_loss_indicator)
             
             if write_data == True:
-                self.data.append([avg_throughput, throughput_fairness, avg_cbr_delay, avg_cbr_loss, avg_video_delay, avg_video_loss])
+                self.data.append([avg_throughput, jain_fairness, standard_deviation, sd_throughput_ratio, avg_cbr_delay, avg_cbr_loss, avg_video_delay, avg_video_loss, avg_delay, avg_loss])
 
-        if self.fitness_calculate_method == 1 or self.fitness_calculate_method == 2 or self.fitness_calculate_method == 3:
+        if self.fitness_calculate_method != 0:
             return fitness
 
     def select(self):
@@ -465,7 +468,7 @@ class GATest:
         
 
 crossover_method = 1
-fitness_calculate_method = [1, 2, 3, 4]
+fitness_calculate_method = [0, 1, 2, 3, 4]
 simulation_times = 100
 
 pop_size = 10
@@ -475,17 +478,18 @@ nr_resource = 120
 tti_per_chromosome = 20
 running_tti = 1000
 
-packet_size_range = {"cbr": [5,10], "video": [10,12]}
-packet_count_range = {"cbr": [8,10], "video": [8,10]}
+packet_size_range = {"cbr": [6,10], "video": [10,12]}
+packet_count_range = {"cbr": [8,10], "video": [6,10]}
 video_packet_gap_time = 5
-signal_weight_lte_range = [2, 5]
+signal_weight_lte_range = [1, 3]
 signal_weight_nr_range = [2, 5]
-packet_deadline_range = {"cbr": [3, 5], "video": [5, 7]}
+packet_deadline_range = {"cbr": [2, 4], "video": [3, 5]}
 
 compare_type = ["70% NR", "50% NR", "30% NR", "Only LTE"]
+compare_data = ["Avg Throughput", "Jain's Fairness","Standard Deviation", "SD-Throughput Ratio", "CBR Delay", "CBR Loss", "Video Delay", "Video Loss", "Total Delay", "Total Loss"]
 f = open('ga_fca.csv', 'w')
 w = csv.writer(f)
-w.writerow(["", "Avg Throughput", "Throughput Fairness", "CBR Delay", "CBR Loss", "Video Delay", "Video Loss"])
+w.writerow([""] + compare_data)
 
 for method in fitness_calculate_method:
     data_array = []
@@ -497,30 +501,30 @@ for method in fitness_calculate_method:
         data = ga_fca.main()
         data_array.append(data)
 
-    if method == 4:
-        for i in range(4):
+    if method == 0:
+        for i in range(len(compare_type)):
             data_output.append([])
-            for j in range(6):
+            for j in range(len(compare_data)):
                 data_output[i].append(0)
     else:
         data_output.append([])
-        for j in range(6):
+        for j in range(len(compare_data)):
                 data_output[0].append(0)
 
-    if method == 4:
+    if method == 0:
         for m in range(simulation_times):
-            for i in range(4):
-                for j in range(6):
+            for i in range(len(compare_type)):
+                for j in range(len(compare_data)):
                     data_output[i][j] = data_output[i][j] + data_array[m][i][j]
         data_output = (np.array(data_output) / simulation_times).tolist()
     else:
         for m in range(simulation_times):
-            for j in range(6):
+            for j in range(len(compare_data)):
                 data_output[0][j] = data_output[0][j] + data_array[m][0][j]
         data_output = (np.array(data_output) / simulation_times).tolist()
 
-    if method == 4:
-        for i in range(len(data_output)):
+    if method == 0:
+        for i in range(len(compare_type)):
             w.writerow([compare_type[i]] + data_output[i])
     else:
         w.writerow(["Method {}".format(method)] + data_output[0])
